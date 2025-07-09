@@ -26,7 +26,8 @@ const config = {
     installDir: '/opt/wireguard-server',
     configDir: '/etc/wireguard',
     clientsDir: '/opt/wireguard-server/clients',
-    logFile: '/var/log/wireguard-web.log'
+    logFile: '/var/log/wireguard-web.log',
+    isDevelopment: process.env.NODE_ENV !== 'production'
 };
 
 // Setup logging
@@ -53,20 +54,34 @@ const io = new Server(server);
 
 // Security middleware
 app.use(helmet({
-    contentSecurityPolicy: {
+    contentSecurityPolicy: config.isDevelopment ? false : {
         directives: {
             defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-            imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "ws:", "wss:"]
+            styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+            imgSrc: ["'self'", "data:", "https:", "blob:"],
+            connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"],
+            fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
+            formAction: ["'self'"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'"],
+            frameSrc: ["'none'"]
         }
-    }
+    },
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false
 }));
 
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:8080'],
-    credentials: true
+    origin: process.env.ALLOWED_ORIGINS?.split(',') || [
+        'http://localhost:8080',
+        'https://localhost:8080',
+        'http://91.99.14.202:8080',
+        'https://91.99.14.202:8080'
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 app.use(compression());
@@ -96,7 +111,18 @@ app.use(session({
 }));
 
 // Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+    setHeaders: (res, path) => {
+        if (path.endsWith('.css')) {
+            res.setHeader('Content-Type', 'text/css');
+        }
+        if (path.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript');
+        }
+        // Allow caching for static assets
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+    }
+}));
 
 // Default admin user (change this in production)
 const adminUser = {
