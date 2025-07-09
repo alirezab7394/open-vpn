@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenVPN Server Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="fas fa-shield-alt"></i> OpenVPN Server Manager</a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, Admin</span>
+                <div class="dropdown">
+                    <button class="btn btn-outline-light btn-sm dropdown-toggle" type="button"
+                        data-bs-toggle="dropdown">
+                        <i class="fas fa-user"></i> Account
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="showSettings()"><i class="fas fa-cog"></i>
+                                Settings</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i>
+                                Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Server Status Dashboard -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-server"></i> OpenVPN Server Status</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <div class="text-center">
+                                    <div class="status-indicator" id="serverStatus">
+                                        <i class="fas fa-circle text-success"></i>
+                                    </div>
+                                    <h6>Server Status</h6>
+                                    <span id="statusText">Online</span>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="text-center">
+                                    <h4 id="connectedClients">0</h4>
+                                    <h6>Connected Clients</h6>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="text-center">
+                                    <h4 id="totalUsers">0</h4>
+                                    <h6>Total Users</h6>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="text-center">
+                                    <h4 id="dataTransfer">0 GB</h4>
+                                    <h6>Data Transfer</h6>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="text-center">
+                                    <h4 id="serverUptime">0h</h4>
+                                    <h6>Uptime</h6>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="text-center">
+                                    <h4 id="serverLoad">0%</h4>
+                                    <h6>CPU Usage</h6>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Tabs -->
+        <div class="row">
+            <div class="col-md-12">
+                <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="clients-tab" data-bs-toggle="tab" data-bs-target="#clients"
+                            type="button" role="tab">
+                            <i class="fas fa-users"></i> Client Management
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="certificates-tab" data-bs-toggle="tab"
+                            data-bs-target="#certificates" type="button" role="tab">
+                            <i class="fas fa-certificate"></i> Certificates
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="connections-tab" data-bs-toggle="tab" data-bs-target="#connections"
+                            type="button" role="tab">
+                            <i class="fas fa-plug"></i> Active Connections
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs" type="button"
+                            role="tab">
+                            <i class="fas fa-file-alt"></i> Logs
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config"
+                            type="button" role="tab">
+                            <i class="fas fa-cogs"></i> Configuration
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content mt-3" id="mainTabsContent">
+                    <!-- Client Management Tab -->
+                    <div class="tab-pane fade show active" id="clients" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Client Management</h5>
+                                <button class="btn btn-primary btn-sm" onclick="showAddClientModal()">
+                                    <i class="fas fa-plus"></i> Add Client
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="clientsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Email</th>
+                                                <th>Status</th>
+                                                <th>Certificate</th>
+                                                <th>Created</th>
+                                                <th>Last Connected</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="clientsTableBody">
+                                            <!-- Clients will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Certificates Tab -->
+                    <div class="tab-pane fade" id="certificates" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Certificate Management</h5>
+                                <div>
+                                    <button class="btn btn-success btn-sm me-2" onclick="showCAInfo()">
+                                        <i class="fas fa-info-circle"></i> CA Info
+                                    </button>
+                                    <button class="btn btn-warning btn-sm" onclick="regenerateCA()">
+                                        <i class="fas fa-sync"></i> Regenerate CA
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Certificate Authority Status</h6>
+                                        <div class="alert alert-success">
+                                            <i class="fas fa-check-circle"></i> CA is active and valid
+                                        </div>
+                                        <p><strong>CA Expiry:</strong> <span id="caExpiry">-</span></p>
+                                        <p><strong>Certificates Issued:</strong> <span id="certsIssued">0</span></p>
+                                        <p><strong>Active Certificates:</strong> <span id="certsActive">0</span></p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Certificate Revocation List (CRL)</h6>
+                                        <div class="mb-3">
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="downloadCRL()">
+                                                <i class="fas fa-download"></i> Download CRL
+                                            </button>
+                                            <button class="btn btn-outline-primary btn-sm" onclick="updateCRL()">
+                                                <i class="fas fa-sync"></i> Update CRL
+                                            </button>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Revoked Certificate</th>
+                                                        <th>Date</th>
+                                                        <th>Reason</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="revokedCertsTable">
+                                                    <!-- Revoked certificates will be listed here -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Connections Tab -->
+                    <div class="tab-pane fade" id="connections" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Active Connections</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Client Name</th>
+                                                <th>Virtual IP</th>
+                                                <th>Real IP</th>
+                                                <th>Connected Since</th>
+                                                <th>Bytes Sent</th>
+                                                <th>Bytes Received</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="connectionsTableBody">
+                                            <!-- Active connections will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Logs Tab -->
+                    <div class="tab-pane fade" id="logs" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Server Logs</h5>
+                                <div>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="refreshLogs()">
+                                        <i class="fas fa-sync"></i> Refresh
+                                    </button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="downloadLogs()">
+                                        <i class="fas fa-download"></i> Download
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="log-controls mb-3">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <select class="form-select" id="logLevel">
+                                                <option value="all">All Levels</option>
+                                                <option value="error">Error</option>
+                                                <option value="warn">Warning</option>
+                                                <option value="info">Info</option>
+                                                <option value="debug">Debug</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <select class="form-select" id="logLines">
+                                                <option value="100">Last 100 lines</option>
+                                                <option value="500">Last 500 lines</option>
+                                                <option value="1000">Last 1000 lines</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="autoRefresh">
+                                                <label class="form-check-label" for="autoRefresh">
+                                                    Auto-refresh logs
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="log-container">
+                                    <pre id="logOutput" class="log-output">Loading logs...</pre>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Configuration Tab -->
+                    <div class="tab-pane fade" id="config" role="tabpanel">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Server Configuration</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Network Settings</h6>
+                                        <div class="mb-3">
+                                            <label class="form-label">Server IP</label>
+                                            <input type="text" class="form-control" id="serverIP"
+                                                placeholder="192.168.1.1">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Port</label>
+                                            <input type="number" class="form-control" id="serverPort" value="1194">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Protocol</label>
+                                            <select class="form-select" id="protocol">
+                                                <option value="udp">UDP</option>
+                                                <option value="tcp">TCP</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Subnet</label>
+                                            <input type="text" class="form-control" id="subnet" value="10.8.0.0/24">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Security Settings</h6>
+                                        <div class="mb-3">
+                                            <label class="form-label">Cipher</label>
+                                            <select class="form-select" id="cipher">
+                                                <option value="AES-256-GCM">AES-256-GCM</option>
+                                                <option value="AES-128-GCM">AES-128-GCM</option>
+                                                <option value="AES-256-CBC">AES-256-CBC</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">Auth Digest</label>
+                                            <select class="form-select" id="authDigest">
+                                                <option value="SHA256">SHA256</option>
+                                                <option value="SHA1">SHA1</option>
+                                                <option value="SHA512">SHA512</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="compression">
+                                                <label class="form-check-label" for="compression">
+                                                    Enable Compression
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="duplicateCN">
+                                                <label class="form-check-label" for="duplicateCN">
+                                                    Allow Duplicate CN
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <button class="btn btn-primary" onclick="saveConfiguration()">
+                                        <i class="fas fa-save"></i> Save Configuration
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="restartServer()">
+                                        <i class="fas fa-sync"></i> Restart Server
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Client Modal -->
+    <div class="modal fade" id="addClientModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add New Client</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addClientForm">
+                        <div class="mb-3">
+                            <label for="clientName" class="form-label">Client Name</label>
+                            <input type="text" class="form-control" id="clientName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="clientEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="clientEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="clientDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="clientDescription" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="clientNoPass">
+                                <label class="form-check-label" for="clientNoPass">
+                                    Generate client without password
+                                </label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="addClient()">
+                        <i class="fas fa-plus"></i> Add Client
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Details Modal -->
+    <div class="modal fade" id="clientDetailsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Client Configuration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Configuration File</h6>
+                            <div class="mb-3">
+                                <textarea class="form-control" id="clientConfig" rows="10" readonly></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <button class="btn btn-outline-secondary" onclick="copyConfig()">
+                                    <i class="fas fa-copy"></i> Copy Config
+                                </button>
+                                <button class="btn btn-primary" onclick="downloadConfig()">
+                                    <i class="fas fa-download"></i> Download .ovpn
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>QR Code</h6>
+                            <div id="qrCodeContainer" class="text-center mb-3">
+                                <!-- QR code will be generated here -->
+                            </div>
+                            <div class="alert alert-info">
+                                <h6>Setup Instructions:</h6>
+                                <p><strong>Desktop:</strong> Download the .ovpn file and import it into your OpenVPN
+                                    client</p>
+                                <p><strong>Mobile:</strong> Use OpenVPN Connect app to scan the QR code or import the
+                                    configuration</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
