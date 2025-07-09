@@ -1,0 +1,38 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  - job_name: "outline-api"
+    static_configs:
+      - targets: ["outline-api:3000"]
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  - job_name: "outline-server"
+    static_configs:
+      - targets: ["outline-server:443"]
+    scrape_interval: 60s
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+
+  - job_name: "nginx"
+    static_configs:
+      - targets: ["outline-ui:80"]
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  - job_name: "redis"
+    static_configs:
+      - targets: ["redis:6379"]
+    scrape_interval: 30s
+
+  - job_name: "postgres"
+    static_configs:
+      - targets: ["postgres:5432"]
+    scrape_interval: 30s

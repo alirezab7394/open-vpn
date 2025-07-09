@@ -1,0 +1,132 @@
+version: "3.8"
+
+services:
+  # Outline VPN Server
+  outline-server:
+    image: quay.io/outline/shadowbox:stable
+    container_name: outline-server
+    ports:
+      - "443:443"
+      - "1024-65535:1024-65535/udp"
+    volumes:
+      - ./data:/opt/outline/persisted-state
+      - ./ssl:/opt/outline/ssl
+    environment:
+      - SB_API_URL=https://${DOMAIN_NAME}:443
+      - SB_API_PREFIX=/api
+      - SB_DEFAULT_SERVER_NAME=Outline VPN Server
+    networks:
+      - outline-network
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv4.ip_forward=1
+
+  # Web Management UI
+  outline-ui:
+    image: nginx:alpine
+    container_name: outline-ui
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./ui:/usr/share/nginx/html
+      - ./ssl:/etc/nginx/ssl
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    environment:
+      - NGINX_HOST=${DOMAIN_NAME}
+      - NGINX_PORT=80
+    networks:
+      - outline-network
+    restart: unless-stopped
+    depends_on:
+      - outline-server
+      - outline-api
+
+  # API Gateway for management
+  outline-api:
+    image: node:16-alpine
+    container_name: outline-api
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./api:/app
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - OUTLINE_API_URL=https://outline-server:443
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - PUBLIC_IP=${PUBLIC_IP}
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    command: sh -c "npm install && npm start"
+    networks:
+      - outline-network
+    restart: unless-stopped
+    depends_on:
+      - outline-server
+
+  # Redis for session management
+  redis:
+    image: redis:alpine
+    container_name: outline-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - outline-network
+    restart: unless-stopped
+
+  # Database for user management
+  postgres:
+    image: postgres:13-alpine
+    container_name: outline-postgres
+    environment:
+      - POSTGRES_DB=outline
+      - POSTGRES_USER=outline
+      - POSTGRES_PASSWORD=${ADMIN_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - outline-network
+    restart: unless-stopped
+
+  # Monitoring with Prometheus (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: outline-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    networks:
+      - outline-network
+    restart: unless-stopped
+
+  # Grafana for monitoring dashboard (optional)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: outline-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - outline-network
+    restart: unless-stopped
+
+networks:
+  outline-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data:

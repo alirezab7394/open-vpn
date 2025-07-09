@@ -1,0 +1,247 @@
+/* Custom styles for Outline VPN Manager */
+
+body {
+  background-color: #f8f9fa;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+  font-weight: bold;
+}
+
+.card {
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.card-header {
+  background-color: #fff;
+  border-bottom: 1px solid #e9ecef;
+  font-weight: 600;
+}
+
+.status-indicator {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+.table th {
+  border-top: none;
+  font-weight: 600;
+  color: #495057;
+}
+
+.btn-action {
+  margin-right: 5px;
+}
+
+.user-status {
+  padding: 4px 8px;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.user-status.active {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.user-status.inactive {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.stats-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 15px;
+}
+
+.stats-card h4 {
+  font-size: 2rem;
+  font-weight: bold;
+  margin-bottom: 0;
+}
+
+.stats-card h6 {
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 0;
+}
+
+.modal-content {
+  border-radius: 15px;
+}
+
+.modal-header {
+  border-bottom: 1px solid #e9ecef;
+}
+
+.modal-footer {
+  border-top: 1px solid #e9ecef;
+}
+
+.form-control:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.btn-primary {
+  background-color: #667eea;
+  border-color: #667eea;
+}
+
+.btn-primary:hover {
+  background-color: #5a6fd8;
+  border-color: #5a6fd8;
+}
+
+.alert-info {
+  background-color: #e7f3ff;
+  border-color: #b8daff;
+  color: #0c5460;
+}
+
+.qr-code {
+  max-width: 200px;
+  margin: 0 auto;
+}
+
+.copy-button {
+  cursor: pointer;
+}
+
+.copy-button:hover {
+  background-color: #f8f9fa;
+}
+
+/* Loading animation */
+.loading {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 15px;
+  }
+
+  .card-body {
+    padding: 15px;
+  }
+
+  .stats-card h4 {
+    font-size: 1.5rem;
+  }
+
+  .table-responsive {
+    font-size: 0.9rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #1a1a1a;
+    color: #ffffff;
+  }
+
+  .card {
+    background-color: #2d2d2d;
+    color: #ffffff;
+  }
+
+  .card-header {
+    background-color: #2d2d2d;
+    border-bottom-color: #444;
+  }
+
+  .table {
+    color: #ffffff;
+  }
+
+  .table th {
+    color: #ffffff;
+  }
+
+  .modal-content {
+    background-color: #2d2d2d;
+    color: #ffffff;
+  }
+
+  .form-control {
+    background-color: #404040;
+    border-color: #555;
+    color: #ffffff;
+  }
+
+  .form-control:focus {
+    background-color: #404040;
+    border-color: #667eea;
+    color: #ffffff;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Animations */
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
