@@ -54,15 +54,91 @@ else
 fi
 echo ""
 
-# 2. Fix docker-compose.yml version issue
-echo -e "${BLUE}2. Fixing docker-compose.yml version issue...${NC}"
-if grep -q "version:" docker-compose.yml; then
-    sed -i '/^version:/d' docker-compose.yml
-    sed -i '/^$/d' docker-compose.yml  # Remove empty line
-    echo -e "${GREEN}✓ Removed obsolete version attribute${NC}"
-else
-    echo -e "${GREEN}✓ No version attribute to remove${NC}"
+# 2. Fix docker-compose.yml by recreating it properly
+echo -e "${BLUE}2. Recreating docker-compose.yml with proper formatting...${NC}"
+if [ -f "docker-compose.yml" ]; then
+    cp docker-compose.yml docker-compose.yml.backup
+    echo "Backup created: docker-compose.yml.backup"
 fi
+
+cat > docker-compose.yml << 'EOF'
+services:
+  openvpn-server:
+    image: d3vilh/openvpn-server:latest
+    container_name: openvpn-server
+    restart: unless-stopped
+    ports:
+      - "1194:1194/udp"
+      - "2080:2080"
+    volumes:
+      - ./data/pki:/etc/openvpn/pki
+      - ./data/clients:/etc/openvpn/clients
+      - ./data/logs:/var/log/openvpn
+      - ./configs/server.conf:/etc/openvpn/server.conf
+      - ./config/easy-rsa.vars:/etc/openvpn/config/easy-rsa.vars
+      - ./scripts/connect.sh:/etc/openvpn/connect.sh
+      - ./scripts/disconnect.sh:/etc/openvpn/disconnect.sh
+    environment:
+      - OPENVPN_PORT=1194
+      - PROTOCOL=udp
+      - EASYRSA_KEY_SIZE=2048
+      - EASYRSA_CA_EXPIRE=3650
+      - EASYRSA_CERT_EXPIRE=825
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    sysctls:
+      - net.ipv4.ip_forward=1
+    networks:
+      - openvpn-network
+
+  openvpn-ui:
+    image: d3vilh/openvpn-ui:latest
+    container_name: openvpn-ui
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/pki:/etc/openvpn/pki
+      - ./data/clients:/etc/openvpn/clients
+      - ./data/db:/opt/openvpn-ui/db
+      - ./data/logs:/var/log/openvpn
+    environment:
+      - OPENVPN_ADMIN_USERNAME=admin
+      - OPENVPN_ADMIN_PASSWORD=UI_passw0rd
+      - OPENVPN_MANAGEMENT_ADDRESS=openvpn-server
+      - OPENVPN_MANAGEMENT_PORT=2080
+      - OPENVPN_SERVER_PORT=1194
+      - OPENVPN_PROTO=udp
+    depends_on:
+      - openvpn-server
+    networks:
+      - openvpn-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: openvpn-nginx
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "801:80"
+    volumes:
+      - ./ssl:/etc/ssl/certs
+      - ./configs/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - openvpn-ui
+    networks:
+      - openvpn-network
+
+networks:
+  openvpn-network:
+    driver: bridge
+EOF
+
+echo -e "${GREEN}✓ docker-compose.yml recreated with proper formatting${NC}"
 echo ""
 
 # 3. Clean directories
@@ -153,15 +229,30 @@ EOF
 echo -e "${GREEN}✓ Nginx configuration created${NC}"
 echo ""
 
-# 6. Update docker-compose.yml to include config volume
-echo -e "${BLUE}6. Updating docker-compose.yml...${NC}"
-# Check if the config volume is already there
-if ! grep -q "easy-rsa.vars" docker-compose.yml; then
-    # Add the config volume to the OpenVPN server
-    sed -i '/- \.\/configs\/server\.conf:\/etc\/openvpn\/server\.conf/a\    - ./config/easy-rsa.vars:/etc/openvpn/config/easy-rsa.vars' docker-compose.yml
-    echo -e "${GREEN}✓ Added config volume to docker-compose.yml${NC}"
+# 6. Create placeholder scripts if they don't exist
+echo -e "${BLUE}6. Creating placeholder scripts...${NC}"
+if [ ! -f "scripts/connect.sh" ]; then
+    cat > scripts/connect.sh << 'EOF'
+#!/bin/bash
+# OpenVPN connect script
+echo "Client connected: $1"
+EOF
+    chmod +x scripts/connect.sh
+    echo -e "${GREEN}✓ connect.sh created${NC}"
 else
-    echo -e "${GREEN}✓ Config volume already exists${NC}"
+    echo -e "${GREEN}✓ connect.sh already exists${NC}"
+fi
+
+if [ ! -f "scripts/disconnect.sh" ]; then
+    cat > scripts/disconnect.sh << 'EOF'
+#!/bin/bash
+# OpenVPN disconnect script
+echo "Client disconnected: $1"
+EOF
+    chmod +x scripts/disconnect.sh
+    echo -e "${GREEN}✓ disconnect.sh created${NC}"
+else
+    echo -e "${GREEN}✓ disconnect.sh already exists${NC}"
 fi
 echo ""
 
