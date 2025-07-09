@@ -1,0 +1,64 @@
+{
+    "server": {
+        "portForNewAccessKeys": 9000,
+        "hostnameForNewAccessKeys": "localhost",
+        "name": "Outline VPN Server",
+        "metricsEnabled": true,
+        "serverId": "outline-server"
+    },
+    "shadowsocks": {
+        "method": "chacha20-ietf-poly1305",
+        "timeout": 300,
+        "fastopen": true,
+        "mode": "tcp_and_udp",
+        "plugin": "v2ray-plugin",
+        "plugin_opts": "server"
+    },
+    "metrics": {
+        "port": 9090,
+        "path": "/metrics"
+    },
+    "logging": {
+        "level": "info",
+        "format": "json",
+        "file": "/var/log/outline-server.log"
+    },
+    "accessKeys": {
+        "dataLimit": {
+            "enabled": true,
+            "bytes": 1073741824
+        },
+        "keyGeneration": {
+            "keyLength": 16,
+            "method": "random"
+        }
+    },
+    "network": {
+        "bindAddress": "0.0.0.0",
+        "allowedCountries": [],
+        "blockedCountries": [],
+        "dnsServers": [
+            "8.8.8.8",
+            "8.8.4.4",
+            "1.1.1.1",
+            "1.0.0.1"
+        ]
+    },
+    "security": {
+        "rateLimiting": {
+            "enabled": true,
+            "maxConnections": 100,
+            "windowMs": 60000
+        },
+        "authentication": {
+            "enabled": true,
+            "method": "psk"
+        }
+    },
+    "performance": {
+        "maxClients": 100,
+        "bufferSize": 4096,
+        "tcpNoDelay": true,
+        "tcpFastOpen": true
+    }
+}

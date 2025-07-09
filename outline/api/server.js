@@ -12,6 +12,9 @@ const axios = require('axios');
 const QRCode = require('qrcode');
 const cron = require('node-cron');
 const winston = require('winston');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const redis = require('redis');
 
 // Load environment variables
 require('dotenv').config();
@@ -68,6 +71,42 @@ let serverStats = {
 const OUTLINE_API_URL = process.env.OUTLINE_API_URL || 'https://outline-server:443';
 const OUTLINE_API_PREFIX = process.env.OUTLINE_API_PREFIX || '/api';
 
+// Constants
+const OUTLINE_SERVER_URL = process.env.OUTLINE_SERVER_URL || 'http://outline-server:8080';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
+
+// Redis client setup
+const redisClient = redis.createClient({
+    host: 'redis',
+    port: 6379
+});
+
+redisClient.on('error', (err) => {
+    console.error('Redis error:', err);
+});
+
+// Connect to Redis
+redisClient.connect();
+
+// Authentication middleware
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ error: 'Access token required' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ error: 'Invalid token' });
+        }
+        req.user = user;
+        next();
+    });
+};
+
 // Utility functions
 function formatBytes(bytes) {
     if (bytes === 0) return 0;
@@ -116,6 +155,38 @@ async function callOutlineAPI(endpoint, method = 'GET', data = null) {
         throw new Error(`Outline API Error: ${error.message}`);
     }
 }
+
+// Helper functions
+const makeOutlineRequest = async (method, endpoint, data = null) => {
+    try {
+        const config = {
+            method,
+            url: `${OUTLINE_SERVER_URL}${endpoint}`,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        };
+
+        if (data) {
+            config.data = data;
+        }
+
+        const response = await axios(config);
+        return response.data;
+    } catch (error) {
+        console.error('Outline API error:', error.message);
+        throw error;
+    }
+};
+
+const generateQRCode = async (text) => {
+    try {
+        return await QRCode.toDataURL(text);
+    } catch (error) {
+        console.error('QR code generation error:', error);
+        throw error;
+    }
+};
 
 // API Routes
 
@@ -339,10 +410,276 @@ app.get('/api/server/logs', (req, res) => {
     }
 });
 
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+    try {
+        const { password } = req.body;
+
+        if (!password) {
+            return res.status(400).json({ error: 'Password is required' });
+        }
+
+        // Simple password check (in production, use proper hashing)
+        if (password !== ADMIN_PASSWORD) {
+            return res.status(401).json({ error: 'Invalid password' });
+        }
+
+        const token = jwt.sign({ user: 'admin' }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ token, expiresIn: '24h' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get server information
+app.get('/api/server', authenticateToken, async (req, res) => {
+    try {
+        const serverInfo = await makeOutlineRequest('GET', '/server');
+        res.json(serverInfo);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get server metrics
+app.get('/api/metrics', authenticateToken, async (req, res) => {
+    try {
+        const metrics = await makeOutlineRequest('GET', '/metrics');
+        res.json(metrics);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get all access keys
+app.get('/api/access-keys', authenticateToken, async (req, res) => {
+    try {
+        const keys = await makeOutlineRequest('GET', '/access-keys');
+
+        // Enhance keys with QR codes
+        const enhancedKeys = await Promise.all(
+            keys.accessKeys.map(async (key) => {
+                try {
+                    const qrCode = await generateQRCode(key.accessUrl);
+                    return {
+                        ...key,
+                        qrCode,
+                        created: new Date().toISOString()
+                    };
+                } catch (error) {
+                    return {
+                        ...key,
+                        qrCode: null,
+                        created: new Date().toISOString()
+                    };
+                }
+            })
+        );
+
+        res.json({ accessKeys: enhancedKeys });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Create new access key
+app.post('/api/access-keys', authenticateToken, async (req, res) => {
+    try {
+        const { name, limit } = req.body;
+
+        // Create the key
+        const newKey = await makeOutlineRequest('POST', '/access-keys');
+
+        // Set name if provided
+        if (name) {
+            await makeOutlineRequest('PUT', `/access-keys/${newKey.id}/name`, { name });
+        }
+
+        // Set data limit if provided
+        if (limit) {
+            await makeOutlineRequest('PUT', `/access-keys/${newKey.id}/data-limit`, { limit: { bytes: limit } });
+        }
+
+        // Generate QR code
+        const qrCode = await generateQRCode(newKey.accessUrl);
+
+        res.json({
+            ...newKey,
+            name: name || `Key ${newKey.id}`,
+            qrCode,
+            created: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete access key
+app.delete('/api/access-keys/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await makeOutlineRequest('DELETE', `/access-keys/${id}`);
+        res.json({ success: true, message: 'Access key deleted' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update access key name
+app.put('/api/access-keys/:id/name', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
+
+        await makeOutlineRequest('PUT', `/access-keys/${id}/name`, { name });
+        res.json({ success: true, message: 'Access key name updated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Set data limit for access key
+app.put('/api/access-keys/:id/data-limit', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { limit } = req.body;
+
+        if (!limit) {
+            return res.status(400).json({ error: 'Data limit is required' });
+        }
+
+        await makeOutlineRequest('PUT', `/access-keys/${id}/data-limit`, { limit: { bytes: limit } });
+        res.json({ success: true, message: 'Data limit updated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Remove data limit for access key
+app.delete('/api/access-keys/:id/data-limit', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        await makeOutlineRequest('DELETE', `/access-keys/${id}/data-limit`);
+        res.json({ success: true, message: 'Data limit removed' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get data usage for all keys
+app.get('/api/metrics/transfer', authenticateToken, async (req, res) => {
+    try {
+        const transfer = await makeOutlineRequest('GET', '/metrics/transfer');
+        res.json(transfer);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get server configuration
+app.get('/api/server/config', authenticateToken, async (req, res) => {
+    try {
+        const config = await makeOutlineRequest('GET', '/server');
+        res.json(config);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update server name
+app.put('/api/server/name', authenticateToken, async (req, res) => {
+    try {
+        const { name } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ error: 'Server name is required' });
+        }
+
+        await makeOutlineRequest('PUT', '/name', { name });
+        res.json({ success: true, message: 'Server name updated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update server hostname
+app.put('/api/server/hostname', authenticateToken, async (req, res) => {
+    try {
+        const { hostname } = req.body;
+
+        if (!hostname) {
+            return res.status(400).json({ error: 'Hostname is required' });
+        }
+
+        await makeOutlineRequest('PUT', '/server/hostname-for-new-access-keys', { hostname });
+        res.json({ success: true, message: 'Server hostname updated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update server port
+app.put('/api/server/port', authenticateToken, async (req, res) => {
+    try {
+        const { port } = req.body;
+
+        if (!port) {
+            return res.status(400).json({ error: 'Port is required' });
+        }
+
+        await makeOutlineRequest('PUT', '/server/port-for-new-access-keys', { port });
+        res.json({ success: true, message: 'Server port updated' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get access key by ID
+app.get('/api/access-keys/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const keys = await makeOutlineRequest('GET', '/access-keys');
+        const key = keys.accessKeys.find(k => k.id === id);
+
+        if (!key) {
+            return res.status(404).json({ error: 'Access key not found' });
+        }
+
+        const qrCode = await generateQRCode(key.accessUrl);
+        res.json({
+            ...key,
+            qrCode,
+            created: new Date().toISOString()
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get system status
+app.get('/api/system/status', authenticateToken, async (req, res) => {
+    try {
+        const status = {
+            server: 'running',
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            timestamp: new Date().toISOString()
+        };
+
+        res.json(status);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Error handling middleware
-app.use((err, req, res, next) => {
-    logger.error(err.stack);
-    res.status(500).json({ error: 'Something went wrong!' });
+app.use((error, req, res, next) => {
+    console.error('Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
 });
 
 // 404 handler

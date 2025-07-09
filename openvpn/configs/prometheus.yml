@@ -11,20 +11,20 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "outline-api"
+  - job_name: "openvpn-api"
     static_configs:
-      - targets: ["outline-api:3000"]
+      - targets: ["openvpn-api:3001"]
     metrics_path: "/api/metrics"
     scrape_interval: 30s
 
-  - job_name: "outline-server"
+  - job_name: "openvpn-server"
     static_configs:
-      - targets: ["outline-server:8080"]
+      - targets: ["openvpn-server:1194"]
     scrape_interval: 30s
 
   - job_name: "nginx"
     static_configs:
-      - targets: ["outline-ui:80"]
+      - targets: ["nginx:80"]
     scrape_interval: 30s
 
   - job_name: "node-exporter"
@@ -35,11 +35,6 @@ scrape_configs:
   - job_name: "cadvisor"
     static_configs:
       - targets: ["cadvisor:8080"]
-    scrape_interval: 30s
-
-  - job_name: "redis"
-    static_configs:
-      - targets: ["redis:6379"]
     scrape_interval: 30s
 
 alerting:
