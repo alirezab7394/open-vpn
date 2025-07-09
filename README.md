@@ -30,7 +30,7 @@ A complete setup for Outline VPN server on Ubuntu with a modern web-based manage
 
 ```bash
 # Download the repository
-git clone https://github.com/yourusername/outline-vpn-server.git
+git clone https://github.com/alirezab7394/open-vpn.git
 cd outline-vpn-server
 
 # Make installation script executable
