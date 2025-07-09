@@ -110,7 +110,7 @@ if command_exists curl; then
     
     # Test through nginx
     echo "Testing access through nginx..."
-    if curl -s -o /dev/null -w "%{http_code}" "http://localhost:801" | grep -q "200"; then
+    if curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080" | grep -q "200"; then
         echo -e "${GREEN}✓ Nginx proxy working${NC}"
     else
         echo -e "${YELLOW}⚠ Nginx proxy not working${NC}"
@@ -124,17 +124,17 @@ echo ""
 echo -e "${GREEN}=== Fix Complete ===${NC}"
 echo ""
 echo "Access URLs:"
-echo "  - Main dashboard: http://your-server-ip:801"
+echo "  - Main dashboard: http://your-server-ip:8080"
 echo "  - Direct OpenVPN-UI: http://your-server-ip:8080"
-echo "  - Client configuration: http://your-server-ip:801/ov/clientconfig"
+echo "  - Client configuration: http://your-server-ip:8080/ov/clientconfig"
 echo ""
 echo "Default login credentials:"
 echo "  - Username: admin"
 echo "  - Password: UI_passw0rd"
 echo ""
 echo "If you still can't access /ov/clientconfig, try these alternatives:"
-echo "  - http://your-server-ip:801/clients"
-echo "  - http://your-server-ip:801/client"
+echo "  - http://your-server-ip:8080/clients"
+echo "  - http://your-server-ip:8080/client"
 echo "  - Access the main dashboard and look for 'Clients' or 'Add Client' menu"
 echo ""
 echo "For further troubleshooting, run:"

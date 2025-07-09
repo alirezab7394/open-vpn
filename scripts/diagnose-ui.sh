@@ -72,10 +72,10 @@ echo ""
 echo -e "${GREEN}3. Checking port bindings${NC}"
 if command_exists netstat; then
     echo "Active ports (OpenVPN related):"
-    netstat -tulpn 2>/dev/null | grep -E ":(801|443|1194|8080)" || echo "No matching ports found"
+    netstat -tulpn 2>/dev/null | grep -E ":(8080|443|1194|8080)" || echo "No matching ports found"
 elif command_exists ss; then
     echo "Active ports (OpenVPN related):"
-    ss -tulpn 2>/dev/null | grep -E ":(801|443|1194|8080)" || echo "No matching ports found"
+    ss -tulpn 2>/dev/null | grep -E ":(8080|443|1194|8080)" || echo "No matching ports found"
 else
     echo "Neither netstat nor ss available"
 fi
@@ -89,16 +89,16 @@ test_url "http://localhost:8080" "Direct OpenVPN-UI access"
 test_url "http://localhost:8080/login" "OpenVPN-UI login page"
 
 # Test through nginx
-test_url "http://localhost:801" "Nginx proxy to OpenVPN-UI"
-test_url "http://localhost:801/login" "Login through nginx"
-test_url "http://localhost:801/ov/clientconfig" "Client config page through nginx"
+test_url "http://localhost:8080" "Nginx proxy to OpenVPN-UI"
+test_url "http://localhost:8080/login" "Login through nginx"
+test_url "http://localhost:8080/ov/clientconfig" "Client config page through nginx"
 
 # Test with actual server IP if available
 if command_exists hostname; then
     SERVER_IP=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "")
     if [ -n "$SERVER_IP" ]; then
-        test_url "http://$SERVER_IP:801" "External access to nginx"
-        test_url "http://$SERVER_IP:801/ov/clientconfig" "External access to client config"
+        test_url "http://$SERVER_IP:8080" "External access to nginx"
+        test_url "http://$SERVER_IP:8080/ov/clientconfig" "External access to client config"
     fi
 fi
 

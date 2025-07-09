@@ -25,7 +25,7 @@
    docker-compose up -d
    ```
 
-3. **Access the dashboard** at: `http://your-server-ip:801`
+3. **Access the dashboard** at: `http://your-server-ip:8080`
 
 #### Option B: Full SSL Setup
 
@@ -76,7 +76,7 @@ docker-compose logs nginx
   ```
 - Check port conflicts:
   ```bash
-  netstat -tulpn | grep -E ":(801|443|1194|8080)"
+  netstat -tulpn | grep -E ":(8080|443|1194|8080)"
   ```
 
 ### 3. PKI/Certificate Issues
