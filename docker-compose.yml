@@ -1,0 +1,75 @@
+version: "3.8"
+
+services:
+  openvpn-server:
+    image: d3vilh/openvpn-server:latest
+    container_name: openvpn-server
+    restart: unless-stopped
+    ports:
+      - "1194:1194/udp"
+      - "2080:2080"
+    volumes:
+      - ./data/pki:/etc/openvpn/pki
+      - ./data/clients:/etc/openvpn/clients
+      - ./data/logs:/var/log/openvpn
+      - ./configs/server.conf:/etc/openvpn/server.conf
+      - ./scripts/connect.sh:/etc/openvpn/connect.sh
+      - ./scripts/disconnect.sh:/etc/openvpn/disconnect.sh
+    environment:
+      - OPENVPN_PORT=1194
+      - PROTOCOL=udp
+      - EASYRSA_KEY_SIZE=2048
+      - EASYRSA_CA_EXPIRE=3650
+      - EASYRSA_CERT_EXPIRE=825
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    sysctls:
+      - net.ipv4.ip_forward=1
+    networks:
+      - openvpn-network
+
+  openvpn-ui:
+    image: d3vilh/openvpn-ui:latest
+    container_name: openvpn-ui
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/pki:/etc/openvpn/pki
+      - ./data/clients:/etc/openvpn/clients
+      - ./data/db:/opt/openvpn-ui/db
+      - ./data/logs:/var/log/openvpn
+    environment:
+      - OPENVPN_ADMIN_USERNAME=admin
+      - OPENVPN_ADMIN_PASSWORD=UI_passw0rd
+      - OPENVPN_MANAGEMENT_ADDRESS=openvpn-server
+      - OPENVPN_MANAGEMENT_PORT=2080
+      - OPENVPN_SERVER_PORT=1194
+      - OPENVPN_PROTO=udp
+    depends_on:
+      - openvpn-server
+    networks:
+      - openvpn-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: openvpn-nginx
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./ssl:/etc/ssl/certs
+      - ./configs/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - openvpn-ui
+    networks:
+      - openvpn-network
+
+networks:
+  openvpn-network:
+    driver: bridge
