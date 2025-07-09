@@ -1,0 +1,40 @@
+version: "3.8"
+
+services:
+  openvpn:
+    image: kylemanna/openvpn:latest
+    container_name: openvpn
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "1194:1194/udp"
+    restart: unless-stopped
+    volumes:
+      - ./openvpn-data:/etc/openvpn
+    environment:
+      - OVPN_PROTO=udp
+      - OVPN_CIPHER=AES-256-GCM
+      - OVPN_AUTH=SHA256
+      - OVPN_COMP_LZ4=yes
+      - OVPN_TLS_CIPHER=TLS-DHE-RSA-WITH-AES-256-GCM-SHA384
+    command: ovpn_run
+
+  openvpn-admin:
+    image: adamwalach/openvpn-admin:latest
+    container_name: openvpn-admin
+    ports:
+      - "8080:8080"
+    depends_on:
+      - openvpn
+    restart: unless-stopped
+    volumes:
+      - ./openvpn-data:/etc/openvpn
+      - ./openvpn-admin-data:/opt/openvpn-admin
+    environment:
+      - OPENVPN_ADMIN_USERNAME=admin
+      - OPENVPN_ADMIN_PASSWORD=admin
+      - OPENVPN_AUTH_METHOD=file
+
+volumes:
+  openvpn-data:
+  openvpn-admin-data:
