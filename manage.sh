@@ -1,13 +1,47 @@
 #!/bin/bash
 
-# Outline VPN Server Management Script
+# VPN Server Management Script
+# Supports both Outline VPN and OpenVPN
 # Usage: ./manage.sh {start|stop|restart|status|logs|backup|update}
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
-ENV_FILE="$SCRIPT_DIR/.env"
+
+# Detect VPN type based on available configurations
+if [[ -f "$SCRIPT_DIR/outline/docker-compose.yml" ]] && [[ -f "$SCRIPT_DIR/openvpn/docker-compose.yml" ]]; then
+    echo "Multiple VPN configurations found. Please specify which one to manage:"
+    echo "1) Outline VPN"
+    echo "2) OpenVPN"
+    read -p "Enter your choice (1 or 2): " VPN_CHOICE
+    
+    case $VPN_CHOICE in
+        1)
+            VPN_TYPE="outline"
+            VPN_NAME="Outline VPN"
+            ;;
+        2)
+            VPN_TYPE="openvpn"
+            VPN_NAME="OpenVPN"
+            ;;
+        *)
+            echo "Invalid choice. Exiting."
+            exit 1
+            ;;
+    esac
+elif [[ -f "$SCRIPT_DIR/outline/docker-compose.yml" ]]; then
+    VPN_TYPE="outline"
+    VPN_NAME="Outline VPN"
+elif [[ -f "$SCRIPT_DIR/openvpn/docker-compose.yml" ]]; then
+    VPN_TYPE="openvpn"
+    VPN_NAME="OpenVPN"
+else
+    echo "No VPN configuration found. Please run install.sh first."
+    exit 1
+fi
+
+COMPOSE_FILE="$SCRIPT_DIR/$VPN_TYPE/docker-compose.yml"
+ENV_FILE="$SCRIPT_DIR/$VPN_TYPE/.env"
 
 # Colors for output
 RED='\033[0;31m'
@@ -52,7 +86,7 @@ check_requirements() {
 }
 
 start_services() {
-    print_header "Starting Outline VPN Server"
+    print_header "Starting $VPN_NAME Server"
     
     # Check if services are already running
     if docker-compose -f "$COMPOSE_FILE" ps | grep -q "Up"; then
@@ -69,21 +103,26 @@ start_services() {
     # Check service status
     docker-compose -f "$COMPOSE_FILE" ps
     
-    print_status "Services started successfully!"
+    print_status "$VPN_NAME services started successfully!"
     print_status "Web UI: http://localhost:8080"
     print_status "Web UI (SSL): https://localhost:8443"
+    
+    if [[ "$VPN_TYPE" == "openvpn" ]]; then
+        print_status "OpenVPN Access Server: https://localhost:943"
+        print_status "OpenVPN Port: 1194/udp"
+    fi
 }
 
 stop_services() {
-    print_header "Stopping Outline VPN Server"
+    print_header "Stopping $VPN_NAME Server"
     
     docker-compose -f "$COMPOSE_FILE" down
     
-    print_status "Services stopped successfully!"
+    print_status "$VPN_NAME services stopped successfully!"
 }
 
 restart_services() {
-    print_header "Restarting Outline VPN Server"
+    print_header "Restarting $VPN_NAME Server"
     
     stop_services
     sleep 5
@@ -110,30 +149,41 @@ show_logs() {
 }
 
 backup_data() {
-    print_header "Backing Up Data"
+    print_header "Backing Up $VPN_NAME Data"
     
     BACKUP_DIR="$SCRIPT_DIR/backups"
-    BACKUP_FILE="$BACKUP_DIR/outline-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
+    BACKUP_FILE="$BACKUP_DIR/${VPN_TYPE}-backup-$(date +%Y%m%d-%H%M%S).tar.gz"
     
     mkdir -p "$BACKUP_DIR"
     
     print_status "Creating backup: $BACKUP_FILE"
     
-    tar -czf "$BACKUP_FILE" \
-        --exclude='backups' \
-        --exclude='node_modules' \
-        --exclude='*.log' \
-        -C "$SCRIPT_DIR" \
-        data/ \
-        ssl/ \
-        .env \
-        docker-compose.yml
+    # Create backup based on VPN type
+    if [[ "$VPN_TYPE" == "outline" ]]; then
+        tar -czf "$BACKUP_FILE" \
+            --exclude='backups' \
+            --exclude='node_modules' \
+            --exclude='*.log' \
+            -C "$SCRIPT_DIR" \
+            outline/ \
+            install.sh \
+            manage.sh
+    elif [[ "$VPN_TYPE" == "openvpn" ]]; then
+        tar -czf "$BACKUP_FILE" \
+            --exclude='backups' \
+            --exclude='node_modules' \
+            --exclude='*.log' \
+            -C "$SCRIPT_DIR" \
+            openvpn/ \
+            install.sh \
+            manage.sh
+    fi
     
     print_status "Backup created successfully: $BACKUP_FILE"
 }
 
 update_system() {
-    print_header "Updating Outline VPN Server"
+    print_header "Updating $VPN_NAME Server"
     
     # Pull latest images
     print_status "Pulling latest Docker images..."
@@ -147,7 +197,7 @@ update_system() {
     print_status "Cleaning up old images..."
     docker image prune -f
     
-    print_status "Update completed successfully!"
+    print_status "$VPN_NAME update completed successfully!"
 }
 
 show_help() {

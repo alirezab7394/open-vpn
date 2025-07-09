@@ -1,6 +1,7 @@
 #!/bin/bash
 
-# Outline VPN Server Installation Script
+# VPN Server Installation Script
+# Supports both Outline VPN and OpenVPN
 # For Ubuntu 18.04+
 
 set -e
@@ -9,6 +10,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Function to print colored output
@@ -30,14 +32,52 @@ print_header() {
     echo -e "${BLUE}================================${NC}"
 }
 
+print_choice() {
+    echo -e "${PURPLE}$1${NC}"
+}
+
 # Check if running as root
 if [[ $EUID -ne 0 ]]; then
    print_error "This script must be run as root (use sudo)"
    exit 1
 fi
 
+# VPN Type Selection
+print_header "VPN Server Setup"
+echo ""
+print_status "Choose your VPN solution:"
+echo ""
+print_choice "1) Outline VPN (Recommended)"
+echo "   - Modern, fast, and censorship-resistant"
+echo "   - Uses Shadowsocks protocol"
+echo "   - Great for restrictive networks"
+echo "   - Easy to manage"
+echo ""
+print_choice "2) OpenVPN"
+echo "   - Traditional, mature, and stable"
+echo "   - Highly configurable"
+echo "   - Certificate-based authentication"
+echo "   - Enterprise features"
+echo ""
+read -p "Enter your choice (1 or 2): " VPN_CHOICE
+
+case $VPN_CHOICE in
+    1)
+        VPN_TYPE="outline"
+        VPN_NAME="Outline VPN"
+        ;;
+    2)
+        VPN_TYPE="openvpn"
+        VPN_NAME="OpenVPN"
+        ;;
+    *)
+        print_error "Invalid choice. Please run the script again."
+        exit 1
+        ;;
+esac
+
 # Get server information
-print_header "Outline VPN Server Setup"
+print_header "$VPN_NAME Server Setup"
 echo ""
 print_status "Gathering server information..."
 
@@ -146,8 +186,75 @@ EOF
 
 # Copy project files to /opt/outline
 print_status "Copying project files..."
-cp docker-compose.yml /opt/outline/
-cp -r ui/* /opt/outline/ui/ 2>/dev/null || true
+cp ${VPN_TYPE}/docker-compose.yml /opt/outline/
+cp -r ${VPN_TYPE}/ui/* /opt/outline/ui/ 2>/dev/null || true
+cp -r ${VPN_TYPE}/api/* /opt/outline/api/ 2>/dev/null || true
+cp -r ${VPN_TYPE}/configs/* /opt/outline/configs/ 2>/dev/null || true
+
+# Copy nginx configuration
+if [[ -f "${VPN_TYPE}/nginx.conf" ]]; then
+    cp ${VPN_TYPE}/nginx.conf /opt/outline/
+else
+    # Create basic nginx config for OpenVPN
+    cat > /opt/outline/nginx.conf << 'EOF'
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    
+    server {
+        listen 80;
+        server_name _;
+        return 301 https://$host$request_uri;
+    }
+    
+    server {
+        listen 443 ssl;
+        server_name _;
+        
+        ssl_certificate /etc/nginx/ssl/server.crt;
+        ssl_certificate_key /etc/nginx/ssl/server.key;
+        
+        root /usr/share/nginx/html;
+        index index.html;
+        
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+        
+        location /api/ {
+            proxy_pass http://openvpn-api:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+EOF
+fi
+
+# Create additional directories for OpenVPN if needed
+if [[ "$VPN_TYPE" == "openvpn" ]]; then
+    mkdir -p /opt/outline/data/openvpn
+    mkdir -p /opt/outline/data/ca
+    mkdir -p /opt/outline/scripts
+    
+    # Create OpenVPN initialization script
+    cat > /opt/outline/scripts/init-openvpn.sh << 'EOF'
+#!/bin/bash
+# Initialize OpenVPN server
+cd /etc/openvpn
+if [ ! -f "server.conf" ]; then
+    echo "Initializing OpenVPN server..."
+    # Basic OpenVPN server configuration will be created here
+fi
+EOF
+    chmod +x /opt/outline/scripts/init-openvpn.sh
+fi
 
 # Start services
 print_header "Starting Services"
@@ -161,7 +268,7 @@ sleep 10
 # Show completion message
 print_header "Installation Complete!"
 echo ""
-print_status "Outline VPN Server is now running!"
+print_status "$VPN_NAME Server is now running!"
 echo ""
 echo "🌐 Web UI Access:"
 echo "   HTTP:  http://$PUBLIC_IP:8080"
@@ -171,6 +278,27 @@ echo "🔐 Admin Credentials:"
 echo "   Username: admin"
 echo "   Password: $ADMIN_PASSWORD"
 echo ""
+
+if [[ "$VPN_TYPE" == "outline" ]]; then
+    echo "📱 Client Setup (Outline VPN):"
+    echo "   1. Download Outline app from getoutline.org"
+    echo "   2. Use the web UI to create access keys"
+    echo "   3. Share QR codes with clients"
+    echo ""
+elif [[ "$VPN_TYPE" == "openvpn" ]]; then
+    echo "📱 Client Setup (OpenVPN):"
+    echo "   1. Download OpenVPN client from openvpn.net"
+    echo "   2. Use the web UI to create client certificates"
+    echo "   3. Download .ovpn files or scan QR codes"
+    echo "   4. Import configurations into OpenVPN client"
+    echo ""
+    echo "🔧 OpenVPN Specific:"
+    echo "   Server Port: 1194/udp"
+    echo "   Management UI: Features certificate management"
+    echo "   Access Server: Alternative UI available at :943"
+    echo ""
+fi
+
 echo "📋 Management Commands:"
 echo "   Status:  sudo docker-compose -f /opt/outline/docker-compose.yml ps"
 echo "   Logs:    sudo docker-compose -f /opt/outline/docker-compose.yml logs -f"
@@ -183,4 +311,10 @@ echo ""
 print_warning "Please save your admin password securely!"
 print_warning "Consider setting up a proper SSL certificate for production use."
 echo ""
-print_status "Installation completed successfully!" 
+print_status "Installation completed successfully!"
+echo ""
+if [[ "$VPN_TYPE" == "outline" ]]; then
+    print_status "Outline VPN is great for bypassing censorship and works well in restrictive networks."
+elif [[ "$VPN_TYPE" == "openvpn" ]]; then
+    print_status "OpenVPN provides enterprise-grade features and extensive configuration options."
+fi 

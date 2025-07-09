@@ -1,6 +1,24 @@
-# Outline VPN Server Setup with Web UI
+# VPN Server Setup with Web UI
 
-A complete setup for Outline VPN server on Ubuntu with a modern web-based management interface.
+Complete setup for **both Outline VPN and OpenVPN** servers on Ubuntu with modern web-based management interfaces.
+
+## 🚀 Choose Your VPN Solution
+
+### **Outline VPN** (Recommended for most users)
+
+- **Modern & Fast** - Built by Google's Jigsaw team
+- **Censorship Resistant** - Uses Shadowsocks protocol
+- **Easy Setup** - Minimal configuration required
+- **Great for Restrictive Networks** - Harder to detect and block
+- **Mobile Friendly** - Excellent mobile applications
+
+### **OpenVPN** (For enterprise and advanced users)
+
+- **Mature & Stable** - 20+ years of development
+- **Highly Configurable** - Extensive customization options
+- **Certificate Management** - Full PKI support
+- **Enterprise Features** - Advanced authentication and routing
+- **Widely Supported** - Works on all platforms
 
 ## 🚀 Features
 
